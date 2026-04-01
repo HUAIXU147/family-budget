@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>家庭生活费协同账本 · 预算可调版</title>
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
@@ -180,25 +179,40 @@
             transform: scale(0.98);
         }
 
+        /* ========== 修复表格布局，填满宽度 ========== */
         .expense-table-wrapper {
             overflow-x: auto;
             border-radius: 20px;
             border: 1px solid #e2e8f0;
             background: white;
+            width: 100%;
         }
 
         .expense-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 0.9rem;
-            min-width: 700px;
+            table-layout: fixed; /* 关键：固定表格布局，列宽由第一行决定 */
         }
 
-        .week-header-row {
-            background: #f8fafc;
-            border-top: 2px solid #cbd5e1;
-            border-bottom: 1px solid #e2e8f0;
+        /* 各列宽度比例 */
+        .expense-table th:nth-child(1),
+        .expense-table td:nth-child(1) { width: 5%; }   /* 展开图标 */
+        .expense-table th:nth-child(2),
+        .expense-table td:nth-child(2) { width: 12%; }  /* 日期 */
+        .expense-table th:nth-child(3),
+        .expense-table td:nth-child(3) { width: 10%; }  /* 星期 */
+        .expense-table th:nth-child(4),
+        .expense-table td:nth-child(4) { width: 18%; }  /* 当日总消费 */
+        .expense-table th:nth-child(5),
+        .expense-table td:nth-child(5) { width: 55%; }  /* 备注 */
+
+        /* 确保备注输入框填满列 */
+        .expense-table td:nth-child(5) input {
+            width: 100%;
+            box-sizing: border-box;
         }
+
         .week-header-row th {
             padding: 12px 12px;
             font-weight: 700;
@@ -218,6 +232,7 @@
             padding: 12px 10px;
             border-bottom: 1px solid #ecf3fa;
             vertical-align: middle;
+            word-break: break-word;
         }
         .expand-icon {
             font-size: 1.2rem;
@@ -230,7 +245,7 @@
             transform: rotate(90deg);
         }
         .daily-total-input {
-            width: 110px;
+            width: 100%;
             padding: 6px 8px;
             border-radius: 14px;
             border: 1px solid #cbd5e1;
@@ -239,6 +254,7 @@
             text-align: right;
             pointer-events: none;
             background-color: #f1f5f9;
+            box-sizing: border-box;
         }
 
         .details-row {
@@ -327,10 +343,21 @@
             color: #1e40af;
         }
 
+        /* 移动端微调 */
         @media (max-width: 720px) {
             .container { padding: 16px; }
             .budget-item { min-width: 120px; padding: 8px 16px; }
             .budget-amount { font-size: 1.6rem; }
+            .expense-table th:nth-child(1),
+            .expense-table td:nth-child(1) { width: 8%; }
+            .expense-table th:nth-child(2),
+            .expense-table td:nth-child(2) { width: 18%; }
+            .expense-table th:nth-child(3),
+            .expense-table td:nth-child(3) { width: 15%; }
+            .expense-table th:nth-child(4),
+            .expense-table td:nth-child(4) { width: 22%; }
+            .expense-table th:nth-child(5),
+            .expense-table td:nth-child(5) { width: 37%; }
             .item-name-input { width: 100px; }
             .item-amount-input { width: 85px; }
         }
@@ -376,7 +403,13 @@
     <div class="expense-table-wrapper">
         <table class="expense-table">
             <thead>
-                <tr><th style="width:40px"></th><th>日期</th><th>星期</th><th>当日总消费 (¥)</th><th>备注</th></tr>
+                <tr>
+                    <th>📌</th>
+                    <th>日期</th>
+                    <th>星期</th>
+                    <th>当日总消费 (¥)</th>
+                    <th>备注</th>
+                </tr>
             </thead>
             <tbody id="tableBodyContainer"></tbody>
         </table>
@@ -402,7 +435,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     
-    let TOTAL_BUDGET = 4000.00;          // 动态预算
+    let TOTAL_BUDGET = 4000.00;
     let currentYear = null, currentMonth = null;
     let monthlyData = [];
     let weeklyGroups = [];
@@ -410,7 +443,6 @@
     let currentDocRef = null;
     let unsubListener = null;
 
-    // DOM 元素
     const tableBodyContainer = document.getElementById('tableBodyContainer');
     const totalSpentDisplay = document.getElementById('totalSpentDisplay');
     const remainingAmountSpan = document.getElementById('remainingAmount');
@@ -423,7 +455,6 @@
     const totalBudgetInput = document.getElementById('totalBudgetInput');
     const updateBudgetBtn = document.getElementById('updateBudgetBtn');
 
-    // 辅助函数
     function getDaysInMonth(year, month) { return new Date(year, month + 1, 0).getDate(); }
     function getChineseWeekday(dateObj) { let dayNum = dateObj.getDay(); return dayNum === 0 ? 7 : dayNum; }
     
@@ -574,7 +605,7 @@
                 remarkInput.type = 'text';
                 remarkInput.placeholder = '备注';
                 remarkInput.value = day.remark || '';
-                remarkInput.style.cssText = 'width:100%;padding:6px;border-radius:12px;border:1px solid #e2e8f0';
+                remarkInput.style.cssText = 'width:100%;padding:6px;border-radius:12px;border:1px solid #e2e8f0;box-sizing:border-box';
                 remarkInput.addEventListener('change', async (e) => { day.remark = e.target.value; await syncToCloud(); });
                 remarkCell.appendChild(remarkInput);
                 mainRow.appendChild(expandCell);
@@ -744,7 +775,6 @@
         await switchToMonth(now.getFullYear(), now.getMonth());
     }
 
-    // 预算修改逻辑
     function updateBudget() {
         let newBudget = parseFloat(totalBudgetInput.value);
         if (isNaN(newBudget) || newBudget < 0) newBudget = 0;
@@ -753,7 +783,6 @@
         updateAllSummaries();
     }
 
-    // 事件绑定
     goToMonthBtn.addEventListener('click', async () => {
         const year = parseInt(yearSelect.value, 10);
         const month = parseInt(monthSelect.value, 10) - 1;
