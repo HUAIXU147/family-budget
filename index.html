@@ -3,414 +3,426 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>家庭生活费协同账本 · 布局优化版</title>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <title>生活费统计表</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.2/firebase-firestore-compat.js"></script>
     <style>
         * {
             box-sizing: border-box;
-            font-family: system-ui, 'Segoe UI', '微软雅黑', 'PingFang SC', Roboto, Arial, sans-serif;
+            font-family: system-ui, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
         }
+
         body {
-            background: #f0f2f5;
+            background: #eef2f9;
             margin: 0;
             padding: 20px;
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
         }
-        .container {
+
+        .app-container {
             max-width: 1400px;
             width: 100%;
             background: white;
-            border-radius: 28px;
-            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.15);
-            overflow-x: auto;
-            padding: 20px 24px 32px;
+            border-radius: 32px;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.2);
+            padding: 1.5rem;
         }
-        h1 {
-            font-size: 1.8rem;
-            font-weight: 600;
-            margin: 0 0 6px 0;
-            color: #1e293b;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-            justify-content: space-between;
-        }
-        .title-badge {
-            background: #eef2ff;
-            padding: 6px 16px;
-            border-radius: 40px;
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: #1e40af;
-        }
-        .sub {
-            color: #475569;
-            margin-bottom: 24px;
-            border-left: 4px solid #3b82f6;
-            padding-left: 14px;
-            font-size: 0.95rem;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-        }
-        .month-picker {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            background: #f1f5f9;
-            padding: 6px 12px;
-            border-radius: 40px;
-        }
-        .month-picker select {
-            padding: 6px 12px;
-            border-radius: 24px;
-            border: 1px solid #cbd5e1;
-            background: white;
-            font-size: 0.9rem;
-        }
-        .month-picker button {
-            background: #3b82f6;
-            border: none;
-            color: white;
-            border-radius: 24px;
-            padding: 6px 14px;
-            cursor: pointer;
-            font-size: 0.85rem;
-        }
-        .budget-panel {
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            border-radius: 24px;
-            padding: 20px 28px;
-            margin-bottom: 28px;
+
+        /* 头部 */
+        .header {
             display: flex;
             flex-wrap: wrap;
             justify-content: space-between;
             align-items: center;
             gap: 20px;
-            color: white;
+            margin-bottom: 28px;
+            border-bottom: 2px solid #e9edf2;
+            padding-bottom: 20px;
         }
-        .budget-item {
-            background: rgba(255, 255, 255, 0.12);
-            backdrop-filter: blur(2px);
-            border-radius: 20px;
-            padding: 12px 22px;
+
+        .budget-section {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            background: #f1f5f9;
+            padding: 8px 24px;
+            border-radius: 60px;
+        }
+
+        .budget-section label {
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .budget-input {
+            font-size: 1.3rem;
+            font-weight: 700;
+            width: 130px;
+            padding: 6px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 40px;
             text-align: center;
-            min-width: 150px;
+            background: white;
         }
-        .budget-label {
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 400;
-            opacity: 0.8;
+
+        .budget-input:focus {
+            outline: none;
+            border-color: #2c7a4d;
+            box-shadow: 0 0 0 3px rgba(44,122,77,0.2);
         }
-        .budget-amount {
-            font-size: 2.3rem;
-            font-weight: 800;
-            line-height: 1.2;
-            margin-top: 6px;
-        }
-        .budget-edit {
+
+        .month-control {
             display: flex;
             align-items: center;
-            gap: 8px;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 6px 12px;
-            border-radius: 40px;
+            gap: 18px;
+            background: #ffffff;
+            padding: 5px 20px;
+            border-radius: 60px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
-        .budget-edit input {
-            width: 100px;
-            background: white;
+
+        .month-btn {
+            background: #eef2ff;
             border: none;
-            border-radius: 20px;
-            padding: 6px 12px;
-            font-size: 1rem;
+            font-size: 1.6rem;
             font-weight: 600;
-            text-align: center;
-        }
-        .budget-edit button {
-            background: #f97316;
-            border: none;
-            border-radius: 30px;
-            padding: 5px 12px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            font-weight: bold;
-            color: white;
-        }
-        .remaining {
-            background: #10b981;
-        }
-        .remaining.negative {
-            background: #ef4444;
-        }
-        .reset-btn {
-            background: #f97316;
-            border: none;
-            color: white;
-            font-weight: 600;
-            padding: 12px 28px;
-            border-radius: 40px;
+            width: 42px;
+            height: 42px;
+            border-radius: 42px;
             cursor: pointer;
             transition: 0.2s;
-        }
-        .reset-btn:hover {
-            background: #ea580c;
-            transform: scale(0.98);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        /* ========== 表格：彻底修复右侧空白 ========== */
-        .expense-table-wrapper {
-            width: 100%;
-            border-radius: 20px;
-            border: 1px solid #e2e8f0;
-            background: #fff;
-            overflow-x: hidden; /* 关键：去掉横向滚动留白 */
+        .month-btn:hover {
+            background: #d9e2ef;
+            transform: scale(0.96);
         }
-        .expense-table {
-            width: 100% !important;
-            min-width: 100% !important;
-            border-collapse: collapse;
+
+        .current-month {
+            font-size: 1.5rem;
+            font-weight: 700;
+            min-width: 200px;
+            text-align: center;
+            letter-spacing: 1px;
+            color: #0f172a;
+        }
+
+        /* 统计卡片 */
+        .stats {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            margin-bottom: 28px;
+            background: linear-gradient(120deg, #f8fafc 0%, #ffffff 100%);
+            padding: 18px 24px;
+            border-radius: 28px;
+        }
+
+        .stat-card {
+            flex: 1;
+            background: white;
+            border-radius: 24px;
+            padding: 12px 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            border: 1px solid #eef2f6;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #5b6e8c;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #1e293b;
+            line-height: 1.2;
+        }
+
+        .remaining {
+            color: #2c7a4d;
+        }
+        .remaining.negative {
+            color: #c2412c;
+        }
+        .progress-bar-bg {
+            margin-top: 10px;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #2c7a4d;
+            border-radius: 10px;
+            transition: width 0.2s;
+        }
+
+        /* 表格区域 - 无横向滚动，自适应宽度 */
+        .table-wrapper {
+            overflow-x: visible;
+            border-radius: 24px;
+            border: 1px solid #edf2f7;
+            background: white;
+            position: relative;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
             font-size: 0.9rem;
+            color: #2c7a4d;
+            backdrop-filter: blur(2px);
+            border-radius: 24px;
+        }
+
+        .expense-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
             table-layout: fixed;
         }
-        .expense-table th,
-        .expense-table td {
-            box-sizing: border-box;
-        }
-        /* 列宽总和严格 100% */
-        .expense-table col:nth-child(1) { width: 7%;  }
-        .expense-table col:nth-child(2) { width: 13%; }
-        .expense-table col:nth-child(3) { width: 10%; }
-        .expense-table col:nth-child(4) { width: 25%; }
-        .expense-table col:nth-child(5) { width: 45%; }
 
-        /* 表头样式 */
-        .expense-table thead th {
-            padding: 12px 8px;
-            background: #f8fafc;
-            font-weight: 600;
-            color: #1e293b;
-            border-bottom: 2px solid #e2e8f0;
-            text-align: left;
-        }
-        .week-header-row th {
-            padding: 12px 12px;
+        .expense-table th {
+            background: #f1f6fd;
+            padding: 12px 4px;
             font-weight: 700;
-            color: #0f3b5c;
-            background: #f1f5f9;
-            text-align: left;
-            border-top: 2px solid #cbd5e1;
+            color: #1f3a4b;
             border-bottom: 1px solid #e2e8f0;
-        }
-        .daily-main-row {
-            cursor: pointer;
-            background-color: white;
-        }
-        .daily-main-row:hover {
-            background-color: #fefce8;
-        }
-        .daily-main-row td {
-            padding: 12px 8px;
-            border-bottom: 1px solid #ecf3fa;
-            vertical-align: middle;
-        }
-        .expand-icon {
-            font-size: 1.2rem;
-            display: inline-block;
-            width: 24px;
             text-align: center;
-            transition: transform 0.2s;
+            width: 12.5%;
         }
-        .expand-icon.open {
-            transform: rotate(90deg);
-        }
-        .daily-total-input {
-            width: 100%;
-            padding: 6px 8px;
-            border-radius: 14px;
-            border: 1px solid #cbd5e1;
-            background: #f9fafb;
-            font-weight: 500;
-            text-align: right;
-            pointer-events: none;
-            background-color: #f1f5f9;
-            box-sizing: border-box;
-        }
-        .remark-input {
-            width: 100%;
-            padding: 6px 8px;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            box-sizing: border-box;
-        }
-        .details-row {
-            background-color: #fefdf6;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .details-cell {
-            padding: 12px 20px 16px 48px;
-            background-color: #fefdf6;
-        }
-        .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.85rem;
-        }
-        .items-table th {
-            text-align: left;
-            padding: 8px 6px;
-            color: #4b5563;
-            font-weight: 500;
-            border-bottom: 1px dashed #d1d5db;
-        }
-        .items-table td {
-            padding: 6px;
-            border-bottom: 1px solid #f0f0e8;
-        }
-        .item-name-input {
-            width: 140px;
-            padding: 6px 8px;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
+
+        .expense-table td {
+            border: 1px solid #ecf3f9;
+            padding: 6px 3px;
+            vertical-align: top;
             background: white;
         }
-        .item-amount-input {
-            width: 110px;
-            padding: 6px 8px;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            text-align: right;
+
+        /* 每日卡片 */
+        .day-card {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 100%;
         }
-        .add-item-btn {
-            background: #e2e8f0;
-            border: none;
-            border-radius: 20px;
-            padding: 4px 12px;
-            font-size: 0.75rem;
-            cursor: pointer;
-            margin-top: 8px;
+        .day-header {
+            font-weight: 700;
+            font-size: 0.85rem;
+            background: #eef2ff;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 30px;
+            margin: 0 auto 4px auto;
+            color: #1f2937;
+        }
+        .expense-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 4px;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+        .expense-item {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            background: #f9fafc;
+            padding: 2px 4px;
+            border-radius: 16px;
+            border: 1px solid #e9edf2;
+            flex-wrap: wrap;
+        }
+        .expense-name {
+            flex: 2;
+            min-width: 45px;
+            padding: 4px 4px;
+            border: 1px solid #cfdee9;
+            border-radius: 16px;
+            font-size: 0.7rem;
+            background: white;
+        }
+        .expense-amount {
+            width: 58px;
+            padding: 4px 4px;
+            border: 1px solid #cfdee9;
+            border-radius: 16px;
+            font-size: 0.7rem;
+            text-align: center;
+            background: white;
         }
         .delete-item-btn {
-            background: none;
+            background: #fee2e2;
             border: none;
-            color: #ef4444;
-            cursor: pointer;
-            font-size: 1rem;
+            border-radius: 20px;
+            width: 20px;
+            height: 20px;
+            font-size: 0.6rem;
             font-weight: bold;
-            padding: 0 6px;
+            cursor: pointer;
+            color: #b91c1c;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
-        .weekly-summary-row {
-            background: #fef9e3;
+        .delete-item-btn:hover {
+            background: #fecaca;
+        }
+        .add-item-btn {
+            background: #e6f0fa;
+            border: none;
+            border-radius: 30px;
+            padding: 4px 6px;
+            font-size: 0.65rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            color: #2c5f8a;
+            margin-top: 2px;
+        }
+        .add-item-btn:hover {
+            background: #d4e2f5;
+        }
+        /* 日总结样式 */
+        .day-total {
+            background: #f0fdf4;
+            border-radius: 20px;
+            padding: 4px 6px;
+            font-size: 0.7rem;
             font-weight: 600;
-            border-top: 1px solid #fed7aa;
+            text-align: center;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+            margin-top: 4px;
         }
-        .weekly-summary-row td {
-            padding: 10px 12px;
-            background: #fffbeb;
+        .empty-cell {
+            background: #fafdff;
+            opacity: 0.55;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .week-total {
+            background: #fef9e3;
+            font-weight: 800;
             color: #b45309;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 0.85rem;
+        }
+        .week-total span {
+            background: #fff1e6;
+            padding: 4px 8px;
+            border-radius: 30px;
+            display: inline-block;
         }
         .footer-note {
             margin-top: 24px;
             text-align: center;
-            font-size: 0.8rem;
-            color: #5b6e8c;
-            background: #f8fafc;
-            padding: 12px;
-            border-radius: 20px;
+            font-size: 0.7rem;
+            color: #5c6f87;
+            border-top: 1px solid #ecf3f9;
+            padding-top: 18px;
         }
-        .sync-status {
-            font-size: 0.8rem;
-            background: #eef2ff;
-            padding: 4px 12px;
-            border-radius: 20px;
-            display: inline-block;
-            color: #1e40af;
+
+        @media (max-width: 900px) {
+            .expense-table {
+                font-size: 0.7rem;
+            }
+            .expense-name {
+                min-width: 38px;
+                font-size: 0.65rem;
+            }
+            .expense-amount {
+                width: 50px;
+                font-size: 0.65rem;
+            }
+            .day-total {
+                font-size: 0.65rem;
+                padding: 3px 4px;
+            }
         }
-        /* 移动端微调 */
-        @media (max-width: 720px) {
-            .container { padding: 16px; }
-            .budget-item { min-width: 120px; padding: 8px 16px; }
-            .budget-amount { font-size: 1.6rem; }
-            .expense-table col:nth-child(1) { width: 12%; }
-            .expense-table col:nth-child(2) { width: 20%; }
-            .expense-table col:nth-child(3) { width: 18%; }
-            .expense-table col:nth-child(4) { width: 25%; }
-            .expense-table col:nth-child(5) { width: 25%; }
-            .item-name-input { width: 100px; }
-            .item-amount-input { width: 85px; }
+
+        @media (max-width: 700px) {
+            .expense-name {
+                min-width: 32px;
+            }
+            .expense-amount {
+                width: 45px;
+            }
         }
     </style>
 </head>
 <body>
-<div class="container">
-    <h1>
-        📋 家庭生活费协同账本 · 布局优化
-        <span class="title-badge">云端同步 · 多人协作</span>
-    </h1>
-    <div class="sub">
-        <span>🗓️ 点击日期展开明细 | 金额实时同步</span>
-        <div class="month-picker">
-            <select id="yearSelect"></select>
-            <select id="monthSelect"></select>
-            <button id="goToMonthBtn">切换月份</button>
-            <span class="sync-status" id="syncStatus">🔄 连接中...</span>
+<div class="app-container">
+    <div class="header">
+        <div class="budget-section">
+            <label>💰 月预算总额</label>
+            <input type="number" id="totalBudgetInput" class="budget-input" step="100" value="4000">
+        </div>
+        <div class="month-control">
+            <button id="prevMonthBtn" class="month-btn">◀</button>
+            <div id="currentMonthDisplay" class="current-month">加载中...</div>
+            <button id="nextMonthBtn" class="month-btn">▶</button>
         </div>
     </div>
-    <div class="budget-panel">
-        <div class="budget-item">
-            <div class="budget-label">💰 总预算</div>
-            <div class="budget-amount">
-                <div class="budget-edit">
-                    <input type="number" id="totalBudgetInput" step="100" value="4000">
-                    <button id="updateBudgetBtn">修改</button>
-                </div>
-            </div>
+
+    <div class="stats">
+        <div class="stat-card">
+            <div class="stat-label">📆 本月总消费</div>
+            <div class="stat-value" id="totalSpent">0.00</div>
         </div>
-        <div class="budget-item">
-            <div class="budget-label">📆 已消费总额</div>
-            <div class="budget-amount" id="totalSpentDisplay">¥0.00</div>
+        <div class="stat-card">
+            <div class="stat-label">💎 剩余生活费</div>
+            <div class="stat-value remaining" id="remainingAmount">4000.00</div>
+            <div class="progress-bar-bg"><div class="progress-fill" id="progressFill"></div></div>
         </div>
-        <div class="budget-item remaining" id="remainingCard">
-            <div class="budget-label">✅ 剩余可用</div>
-            <div class="budget-amount" id="remainingAmount">¥4000.00</div>
-        </div>
-        <button class="reset-btn" id="resetAllBtn">⟳ 清零所有消费</button>
     </div>
-    <div class="expense-table-wrapper">
-        <table class="expense-table">
-            <colgroup>
-                <col>
-                <col>
-                <col>
-                <col>
-                <col>
-            </colgroup>
+
+    <div class="table-wrapper" id="tableWrapper">
+        <div class="loading-overlay" id="loadingOverlay" style="display: none;">📡 加载数据中...</div>
+        <table class="expense-table" id="expenseTable">
             <thead>
-                <tr>
-                    <th>📌</th>
-                    <th>日期</th>
-                    <th>星期</th>
-                    <th>当日总消费 (¥)</th>
-                    <th>备注</th>
-                </tr>
+                <tr><th>周一</th><th>周二</th><th>周三</th><th>周四</th><th>周五</th><th>周六</th><th>周日</th><th>📊 周合计</th>   </>
             </thead>
-            <tbody id="tableBodyContainer"></tbody>
-        </table>
+            <tbody id="tableBody"></tbody>
+         </table>
     </div>
     <div class="footer-note">
-        ✨ 提示：点击日期行展开，可添加/删除具体项目（早餐、午餐等），金额自动汇总。所有数据云端存储，多人实时同步。总预算可随时修改。
+        ✨ 数据实时云端同步（Firebase），每月消费独立保存，切换月份不会丢失历史记录。<br>
+        📝 每天可自由添加消费项（早餐、午餐、交通等），点击“+ 添加”增加条目，每日底部显示本日合计。
     </div>
 </div>
+
 <script>
-    // ==================== 请替换为您的 Firebase 配置 ====================
+    // ----------------------------- Firebase 配置（请替换为您的项目配置）-----------------------------
     const firebaseConfig = {
         apiKey: "AIzaSyBv8bpOCY4A3mSR5c6W28NhZxa2c7GnVgM",
         authDomain: "family-budget-6195c.firebaseapp.com",
@@ -419,346 +431,418 @@
         messagingSenderId: "1073000744379",
         appId: "1:1073000744379:web:f0151dec6b3564a470f09e"
     };
-    // =================================================================
-    // 初始化 Firebase
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    
-    let TOTAL_BUDGET = 4000.00;
-    let currentYear = null, currentMonth = null;
-    let monthlyData = [];
-    let weeklyGroups = [];
-    let expandedRowState = {};
-    let currentDocRef = null;
-    let unsubListener = null;
-    const tableBodyContainer = document.getElementById('tableBodyContainer');
-    const totalSpentDisplay = document.getElementById('totalSpentDisplay');
-    const remainingAmountSpan = document.getElementById('remainingAmount');
-    const remainingCard = document.getElementById('remainingCard');
-    const resetBtn = document.getElementById('resetAllBtn');
-    const syncStatusSpan = document.getElementById('syncStatus');
-    const yearSelect = document.getElementById('yearSelect');
-    const monthSelect = document.getElementById('monthSelect');
-    const goToMonthBtn = document.getElementById('goToMonthBtn');
-    const totalBudgetInput = document.getElementById('totalBudgetInput');
-    const updateBudgetBtn = document.getElementById('updateBudgetBtn');
-    function getDaysInMonth(year, month) { return new Date(year, month + 1, 0).getDate(); }
-    function getChineseWeekday(dateObj) { let dayNum = dateObj.getDay(); return dayNum === 0 ? 7 : dayNum; }
-    
-    function buildEmptyMonthData(year, month) {
-        const daysCount = getDaysInMonth(year, month);
-        const monthData = [];
-        for (let d = 1; d <= daysCount; d++) {
-            const dateObj = new Date(year, month, d);
-            const weekdayNum = getChineseWeekday(dateObj);
-            const weekdayStr = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][weekdayNum - 1];
-            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-            monthData.push({
-                dateStr, year, month, day: d, weekdayNum, weekdayStr,
-                items: [], remark: '', totalAmount: 0
-            });
-        }
-        return monthData;
-    }
-    function applyCloudData(cloudDoc) {
-        if (!cloudDoc || !cloudDoc.days) return;
-        const daysMap = cloudDoc.days;
-        monthlyData.forEach(day => {
-            const cloudDay = daysMap[day.dateStr];
-            if (cloudDay) {
-                day.items = cloudDay.items || [];
-                day.remark = cloudDay.remark || '';
-                day.totalAmount = day.items.reduce((sum, it) => sum + (it.amount || 0), 0);
-            } else {
-                day.items = [];
-                day.remark = '';
-                day.totalAmount = 0;
-            }
-        });
-    }
-    function buildCloudData() {
-        const days = {};
-        monthlyData.forEach(day => { days[day.dateStr] = { items: day.items, remark: day.remark }; });
-        return { days };
-    }
-    async function syncToCloud() {
-        if (!currentDocRef) return;
-        try {
-            await currentDocRef.set(buildCloudData(), { merge: true });
-            syncStatusSpan.innerText = '✅ 已同步';
-            setTimeout(() => { if (syncStatusSpan.innerText === '✅ 已同步') syncStatusSpan.innerText = '☁️ 已连接'; }, 1500);
-        } catch (err) { console.error('同步失败:', err); syncStatusSpan.innerText = '⚠️ 同步失败'; }
-    }
-    async function updateDayAndSync(dayIdx) {
-        const day = monthlyData[dayIdx];
-        day.totalAmount = day.items.reduce((sum, it) => sum + (it.amount || 0), 0);
-        await syncToCloud();
-        updateAllSummaries();
-        renderFullTable();
-    }
-    async function resetAllExpenses() {
-        if (!confirm('确认清零当前月份所有消费记录？此操作会同步到所有成员，无法撤销。')) return;
-        monthlyData.forEach(day => { day.items = []; day.remark = ''; day.totalAmount = 0; });
-        expandedRowState = {};
-        await syncToCloud();
-        renderFullTable();
-    }
-    function updateAllSummaries() {
-        let totalSpent = monthlyData.reduce((sum, day) => sum + day.totalAmount, 0);
-        const remaining = TOTAL_BUDGET - totalSpent;
-        totalSpentDisplay.innerText = `¥${totalSpent.toFixed(2)}`;
-        remainingAmountSpan.innerText = `¥${remaining.toFixed(2)}`;
-        if (remaining < 0) {
-            remainingCard.classList.add('negative');
-            remainingCard.style.background = "#ef4444";
+    let db = null;
+    let firebaseInitialized = false;
+    try {
+        if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            firebaseInitialized = true;
+            console.log("✅ Firebase 已连接，历史记录云端保存");
         } else {
-            remainingCard.classList.remove('negative');
-            remainingCard.style.background = "#10b981";
+            console.warn("⚠️ 未填写 Firebase 配置，数据将仅保存在内存中（刷新会丢失）");
         }
-        if (!weeklyGroups.length) return;
-        weeklyGroups.forEach((group, idx) => {
-            let groupSum = group.daysIndices.reduce((sum, di) => sum + monthlyData[di].totalAmount, 0);
-            const span = document.querySelector(`.group-total-${idx}`);
-            if (span) span.innerText = `¥${groupSum.toFixed(2)}`;
-        });
+    } catch(e) {
+        console.warn("Firebase 初始化失败", e);
     }
-    function groupByWeek(monthData) {
-        const groups = [];
-        let currentGroup = null;
-        for (let i = 0; i < monthData.length; i++) {
-            const day = monthData[i];
-            if (!currentGroup || day.weekdayNum === 1) {
-                if (currentGroup) groups.push(currentGroup);
-                currentGroup = { startIdx: i, endIdx: i, daysIndices: [i], startDate: day.dateStr, endDate: day.dateStr };
-            } else {
-                currentGroup.daysIndices.push(i);
-                currentGroup.endIdx = i;
-                currentGroup.endDate = day.dateStr;
-            }
-        }
-        if (currentGroup) groups.push(currentGroup);
-        return groups;
+
+    // ---------- 全局变量 ----------
+    let currentYear = new Date().getFullYear();
+    let currentMonth = new Date().getMonth();
+    let totalBudget = 4000;
+    let currentMonthUnsubscribe = null;
+    let budgetUnsubscribe = null;
+    let isRendering = false;
+
+    function getDocId(year, month) {
+        const m = (month + 1).toString().padStart(2, '0');
+        return `${year}_${m}`;
     }
-    function renderFullTable() {
-        if (!monthlyData.length) return;
-        weeklyGroups = groupByWeek(monthData);
-        tableBodyContainer.innerHTML = '';
-        weeklyGroups.forEach((group, groupIdx) => {
-            const tbody = document.createElement('tbody');
-            const startDay = monthlyData[group.startIdx], endDay = monthlyData[group.endIdx];
-            const titleRow = document.createElement('tr');
-            titleRow.className = 'week-header-row';
-            const th = document.createElement('th');
-            th.colSpan = 5;
-            th.innerHTML = `📅 第 ${groupIdx+1} 周 · ${startDay.dateStr} 至 ${endDay.dateStr} (周一~周日)`;
-            titleRow.appendChild(th);
-            tbody.appendChild(titleRow);
-            group.daysIndices.forEach(dayIdx => {
-                const day = monthlyData[dayIdx];
-                const isExpanded = expandedRowState[day.dateStr] || false;
-                const mainRow = document.createElement('tr');
-                mainRow.className = 'daily-main-row';
-                mainRow.style.cursor = 'pointer';
-                const expandCell = document.createElement('td');
-                expandCell.style.textAlign = 'center';
-                const iconSpan = document.createElement('span');
-                iconSpan.className = `expand-icon ${isExpanded ? 'open' : ''}`;
-                iconSpan.innerText = isExpanded ? '▼' : '▶';
-                expandCell.appendChild(iconSpan);
-                const dateCell = document.createElement('td');
-                dateCell.innerText = `${day.month+1}/${day.day}`;
-                const weekdayCell = document.createElement('td');
-                weekdayCell.innerText = day.weekdayStr;
-                const totalCell = document.createElement('td');
-                const totalInput = document.createElement('input');
-                totalInput.type = 'text';
-                totalInput.className = 'daily-total-input';
-                totalInput.value = `¥${day.totalAmount.toFixed(2)}`;
-                totalInput.readOnly = true;
-                totalCell.appendChild(totalInput);
-                const remarkCell = document.createElement('td');
-                const remarkInput = document.createElement('input');
-                remarkInput.type = 'text';
-                remarkInput.placeholder = '备注';
-                remarkInput.value = day.remark || '';
-                remarkInput.className = 'remark-input';
-                remarkInput.addEventListener('change', async (e) => { day.remark = e.target.value; await syncToCloud(); });
-                remarkCell.appendChild(remarkInput);
-                mainRow.appendChild(expandCell);
-                mainRow.appendChild(dateCell);
-                mainRow.appendChild(weekdayCell);
-                mainRow.appendChild(totalCell);
-                mainRow.appendChild(remarkCell);
-                mainRow.addEventListener('click', (e) => {
-                    if (e.target.tagName === 'INPUT') return;
-                    expandedRowState[day.dateStr] = !expandedRowState[day.dateStr];
-                    renderFullTable();
-                });
-                tbody.appendChild(mainRow);
-                if (isExpanded) {
-                    const detailRow = document.createElement('tr');
-                    detailRow.className = 'details-row';
-                    const detailCell = document.createElement('td');
-                    detailCell.colSpan = 5;
-                    detailCell.className = 'details-cell';
-                    const itemsDiv = document.createElement('div');
-                    const itemsTable = document.createElement('table');
-                    itemsTable.className = 'items-table';
-                    itemsTable.innerHTML = `<thead><tr><th>消费项目</th><th>金额(¥)</th><th></th></tr></thead><tbody id="items-tbody-${day.dateStr}"></tbody>`;
-                    const tbodyItems = itemsTable.querySelector(`tbody#items-tbody-${day.dateStr}`);
-                    day.items.forEach((item, idx) => {
-                        const row = document.createElement('tr');
-                        const nameCell = document.createElement('td');
-                        const nameInput = document.createElement('input');
-                        nameInput.type = 'text';
-                        nameInput.value = item.name || '';
-                        nameInput.placeholder = '例如: 早餐';
-                        nameInput.className = 'item-name-input';
-                        nameInput.addEventListener('change', async () => { day.items[idx].name = nameInput.value; await updateDayAndSync(dayIdx); });
-                        nameCell.appendChild(nameInput);
-                        const amountCell = document.createElement('td');
-                        const amountInput = document.createElement('input');
-                        amountInput.type = 'number';
-                        amountInput.step = '0.01';
-                        amountInput.value = item.amount ? item.amount.toFixed(2) : '';
-                        amountInput.placeholder = '0.00';
-                        amountInput.className = 'item-amount-input';
-                        amountInput.addEventListener('change', async () => {
-                            let val = parseFloat(amountInput.value);
-                            if (isNaN(val)) val = 0;
-                            day.items[idx].amount = val;
-                            await updateDayAndSync(dayIdx);
-                        });
-                        amountCell.appendChild(amountInput);
-                        const delCell = document.createElement('td');
-                        const delBtn = document.createElement('button');
-                        delBtn.innerText = '✖';
-                        delBtn.className = 'delete-item-btn';
-                        delBtn.addEventListener('click', async () => { day.items.splice(idx, 1); await updateDayAndSync(dayIdx); });
-                        delCell.appendChild(delBtn);
-                        row.appendChild(nameCell);
-                        row.appendChild(amountCell);
-                        row.appendChild(delCell);
-                        tbodyItems.appendChild(row);
-                    });
-                    const addBtn = document.createElement('button');
-                    addBtn.innerText = '+ 添加消费项目';
-                    addBtn.className = 'add-item-btn';
-                    addBtn.addEventListener('click', async () => { day.items.push({ name: '', amount: 0 }); await updateDayAndSync(dayIdx); });
-                    itemsDiv.appendChild(itemsTable);
-                    itemsDiv.appendChild(addBtn);
-                    detailCell.appendChild(itemsDiv);
-                    detailRow.appendChild(detailCell);
-                    tbody.appendChild(detailRow);
+    const BUDGET_DOC_ID = "global_budget";
+
+    function setLoading(show) {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) overlay.style.display = show ? 'flex' : 'none';
+    }
+
+    // 构建表格结构（骨架，包含日合计占位）
+    function buildTableStructure() {
+        const year = currentYear;
+        const month = currentMonth;
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const firstDayJS = new Date(year, month, 1).getDay();
+        let firstMondayOffset = (firstDayJS === 0 ? 6 : firstDayJS - 1);
+        
+        const weeks = [];
+        let currentDay = 1;
+        for (let row = 0; row < 6; row++) {
+            const week = [];
+            let hasDays = false;
+            for (let col = 0; col < 7; col++) {
+                if ((row === 0 && col < firstMondayOffset) || currentDay > daysInMonth) {
+                    week.push({ day: null, valid: false });
+                } else {
+                    if (currentDay <= daysInMonth) {
+                        week.push({ day: currentDay, valid: true });
+                        hasDays = true;
+                        currentDay++;
+                    } else {
+                        week.push({ day: null, valid: false });
+                    }
                 }
-            });
-            const summaryRow = document.createElement('tr');
-            summaryRow.className = 'weekly-summary-row';
-            const sumLabelCell = document.createElement('td');
-            sumLabelCell.colSpan = 4;
-            sumLabelCell.style.textAlign = 'right';
-            sumLabelCell.style.fontWeight = '600';
-            sumLabelCell.innerText = '📌 本周合计：';
-            const sumAmountCell = document.createElement('td');
-            sumAmountCell.style.fontWeight = '800';
-            sumAmountCell.style.color = '#c2410c';
-            const groupTotalSpan = document.createElement('span');
-            groupTotalSpan.className = `group-total-${groupIdx}`;
-            let groupSum = group.daysIndices.reduce((sum, di) => sum + monthlyData[di].totalAmount, 0);
-            groupTotalSpan.innerText = `¥${groupSum.toFixed(2)}`;
-            sumAmountCell.appendChild(groupTotalSpan);
-            summaryRow.appendChild(sumLabelCell);
-            summaryRow.appendChild(sumAmountCell);
-            tbody.appendChild(summaryRow);
-            tableBodyContainer.appendChild(tbody);
-        });
-        updateAllSummaries();
-    }
-    function watchCloudChanges() {
-        if (unsubListener) unsubListener();
-        if (!currentDocRef) return;
-        unsubListener = currentDocRef.onSnapshot((snapshot) => {
-            if (snapshot.exists) {
-                const cloudData = snapshot.data();
-                applyCloudData(cloudData);
-                renderFullTable();
-                syncStatusSpan.innerText = '☁️ 已连接';
             }
-        }, (err) => {
-            console.error('监听错误:', err);
-            syncStatusSpan.innerText = '⚠️ 连接异常';
-        });
-    }
-    async function switchToMonth(year, month) {
-        if (unsubListener) unsubListener();
-        currentYear = year;
-        currentMonth = month;
-        expandedRowState = {};
-        monthlyData = buildEmptyMonthData(year, month);
-        currentDocRef = db.collection('budgets').doc(`${year}_${month}`);
+            if (hasDays || week.some(c => c.day !== null)) weeks.push(week);
+            if (currentDay > daysInMonth) break;
+        }
+
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
         
-        syncStatusSpan.innerText = '🔄 加载中...';
-        tableBodyContainer.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;">加载云端数据中...</td></tr>';
-        
-        try {
-            const doc = await currentDocRef.get();
-            if (doc.exists) {
-                applyCloudData(doc.data());
-            } else {
-                await currentDocRef.set(buildCloudData());
+        for (let w = 0; w < weeks.length; w++) {
+            const weekCells = weeks[w];
+            const tr = document.createElement('tr');
+            for (let i = 0; i < 7; i++) {
+                const cellData = weekCells[i];
+                const td = document.createElement('td');
+                if (!cellData || !cellData.valid) {
+                    td.className = 'empty-cell';
+                    td.innerHTML = '<div style="padding: 12px 0; color:#a0b3cc;">—</div>';
+                } else {
+                    const dayNum = cellData.day;
+                    const dayCard = document.createElement('div');
+                    dayCard.className = 'day-card';
+                    dayCard.setAttribute('data-day', dayNum);
+                    
+                    const dayHeader = document.createElement('div');
+                    dayHeader.className = 'day-header';
+                    dayHeader.innerText = dayNum;
+                    dayCard.appendChild(dayHeader);
+                    
+                    const expenseListDiv = document.createElement('div');
+                    expenseListDiv.className = 'expense-list';
+                    expenseListDiv.id = `day-${dayNum}-list`;
+                    dayCard.appendChild(expenseListDiv);
+                    
+                    const addBtn = document.createElement('button');
+                    addBtn.className = 'add-item-btn';
+                    addBtn.innerHTML = '+ 添加';
+                    addBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        addExpenseItem(dayNum);
+                    };
+                    dayCard.appendChild(addBtn);
+                    
+                    // 日总结显示区域
+                    const dayTotalDiv = document.createElement('div');
+                    dayTotalDiv.className = 'day-total';
+                    dayTotalDiv.id = `day-total-${dayNum}`;
+                    dayTotalDiv.innerText = '合计: 0.00';
+                    dayCard.appendChild(dayTotalDiv);
+                    
+                    td.appendChild(dayCard);
+                }
+                tr.appendChild(td);
             }
-            watchCloudChanges();
-            renderFullTable();
-            syncStatusSpan.innerText = '☁️ 已连接';
-        } catch (err) {
-            console.error('加载失败:', err);
-            syncStatusSpan.innerText = '⚠️ 加载失败';
-            renderFullTable();
+            const weekTotalTd = document.createElement('td');
+            weekTotalTd.className = 'week-total';
+            weekTotalTd.innerHTML = `<span>0.00</span>`;
+            tr.appendChild(weekTotalTd);
+            tbody.appendChild(tr);
         }
     }
-    function initMonthPicker() {
-        const now = new Date();
-        const currentYearVal = now.getFullYear();
-        for (let y = currentYearVal - 5; y <= currentYearVal + 5; y++) {
-            const opt = document.createElement('option');
-            opt.value = y;
-            opt.textContent = y;
-            yearSelect.appendChild(opt);
-        }
-        yearSelect.value = currentYearVal;
-        for (let m = 1; m <= 12; m++) {
-            const opt = document.createElement('option');
-            opt.value = m;
-            opt.textContent = `${m}月`;
-            monthSelect.appendChild(opt);
-        }
-        monthSelect.value = now.getMonth() + 1;
+
+    function createExpenseItemElement(day, itemId, name = '', amount = '') {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'expense-item';
+        itemDiv.setAttribute('data-item-id', itemId);
+        
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.className = 'expense-name';
+        nameInput.placeholder = '项目';
+        nameInput.value = name;
+        
+        const amountInput = document.createElement('input');
+        amountInput.type = 'number';
+        amountInput.step = '0.01';
+        amountInput.className = 'expense-amount';
+        amountInput.placeholder = '金额';
+        amountInput.value = (amount !== '' && !isNaN(amount)) ? amount : '';
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-item-btn';
+        deleteBtn.innerHTML = '✕';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteExpenseItem(day, itemId);
+        };
+        
+        const updateHandler = () => {
+            updateDayExpensesToFirestore(day);
+        };
+        nameInput.addEventListener('change', updateHandler);
+        amountInput.addEventListener('change', updateHandler);
+        
+        itemDiv.appendChild(nameInput);
+        itemDiv.appendChild(amountInput);
+        itemDiv.appendChild(deleteBtn);
+        return itemDiv;
     }
-    async function init() {
-        if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "YOUR_API_KEY") {
-            alert('请先在代码中替换您的 Firebase 配置！');
-            syncStatusSpan.innerText = '⚠️ 请配置 Firebase';
+    
+    function addExpenseItem(day, prefillName = '', prefillAmount = '') {
+        const container = document.getElementById(`day-${day}-list`);
+        if (!container) return;
+        const tempId = `item_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
+        const newItem = createExpenseItemElement(day, tempId, prefillName, prefillAmount);
+        container.appendChild(newItem);
+        updateDayExpensesToFirestore(day);
+    }
+    
+    function deleteExpenseItem(day, itemId) {
+        const container = document.getElementById(`day-${day}-list`);
+        if (!container) return;
+        const targetItem = container.querySelector(`.expense-item[data-item-id="${itemId}"]`);
+        if (targetItem) {
+            targetItem.remove();
+            updateDayExpensesToFirestore(day);
+        }
+    }
+    
+    function collectDayItems(day) {
+        const container = document.getElementById(`day-${day}-list`);
+        if (!container) return [];
+        const items = [];
+        const itemDivs = container.querySelectorAll('.expense-item');
+        itemDivs.forEach(div => {
+            const nameInput = div.querySelector('.expense-name');
+            const amountInput = div.querySelector('.expense-amount');
+            let name = nameInput ? nameInput.value.trim() : '';
+            let amount = amountInput ? parseFloat(amountInput.value) : 0;
+            if (isNaN(amount)) amount = 0;
+            if (name === '' && amount === 0) return;
+            if (name === '') name = '未命名';
+            items.push({ name, amount });
+        });
+        return items;
+    }
+    
+    function updateDayExpensesToFirestore(day) {
+        if (!firebaseInitialized || !db) {
+            recalcAllTotals();
             return;
         }
-        initMonthPicker();
+        const items = collectDayItems(day);
+        const docId = getDocId(currentYear, currentMonth);
+        const docRef = db.collection('monthly_expenses').doc(docId);
+        const updatePath = `days.${day}`;
+        const updateData = {};
+        updateData[updatePath] = items;
+        docRef.set(updateData, { merge: true })
+            .then(() => recalcAllTotals())
+            .catch(err => console.error("更新失败:", err));
+    }
+    
+    function renderDayFromData(day, itemsArray) {
+        const container = document.getElementById(`day-${day}-list`);
+        if (!container) return;
+        container.innerHTML = '';
+        if (!itemsArray || !Array.isArray(itemsArray)) return;
+        itemsArray.forEach((item, idx) => {
+            const itemId = `item_${day}_${idx}_${Date.now()}_${Math.random()}`;
+            const itemEl = createExpenseItemElement(day, itemId, item.name || '', item.amount !== undefined ? item.amount : '');
+            container.appendChild(itemEl);
+        });
+    }
+    
+    function updateAllDaysFromData(daysMap) {
+        if (isRendering) return;
+        isRendering = true;
+        try {
+            for (let day in daysMap) {
+                if (daysMap.hasOwnProperty(day)) {
+                    renderDayFromData(parseInt(day), daysMap[day]);
+                }
+            }
+            const allDayContainers = document.querySelectorAll('.day-card');
+            allDayContainers.forEach(card => {
+                const dayAttr = card.getAttribute('data-day');
+                if (dayAttr && !daysMap[dayAttr]) {
+                    const listDiv = card.querySelector('.expense-list');
+                    if (listDiv) listDiv.innerHTML = '';
+                }
+            });
+            recalcAllTotals();
+        } finally {
+            isRendering = false;
+        }
+    }
+    
+    // 核心计算：总消费、周合计、日合计
+    function recalcAllTotals() {
+        const rows = document.querySelectorAll('#tableBody tr');
+        let grandTotal = 0;
+        
+        for (let r = 0; r < rows.length; r++) {
+            const row = rows[r];
+            const tds = row.querySelectorAll('td:not(:last-child)');
+            let weekSum = 0;
+            tds.forEach(td => {
+                const dayCard = td.querySelector('.day-card');
+                if (dayCard) {
+                    const dayNum = dayCard.getAttribute('data-day');
+                    const amounts = dayCard.querySelectorAll('.expense-amount');
+                    let dayTotal = 0;
+                    amounts.forEach(amountInput => {
+                        let val = parseFloat(amountInput.value);
+                        if (!isNaN(val)) dayTotal += val;
+                    });
+                    weekSum += dayTotal;
+                    grandTotal += dayTotal;
+                    
+                    // 更新日合计显示
+                    const dayTotalEl = document.getElementById(`day-total-${dayNum}`);
+                    if (dayTotalEl) {
+                        dayTotalEl.innerText = `合计: ${dayTotal.toFixed(2)}`;
+                    }
+                }
+            });
+            const weekTotalTd = row.querySelector('td:last-child');
+            if (weekTotalTd) {
+                weekTotalTd.innerHTML = `<span>${weekSum.toFixed(2)}</span>`;
+            }
+        }
+        
+        document.getElementById('totalSpent').innerText = grandTotal.toFixed(2);
+        const remaining = totalBudget - grandTotal;
+        const remainingEl = document.getElementById('remainingAmount');
+        remainingEl.innerText = remaining.toFixed(2);
+        if (remaining < 0) {
+            remainingEl.classList.add('negative');
+        } else {
+            remainingEl.classList.remove('negative');
+        }
+        const percent = totalBudget > 0 ? (grandTotal / totalBudget) * 100 : 0;
+        const fillBar = document.getElementById('progressFill');
+        if (fillBar) {
+            fillBar.style.width = `${Math.min(100, percent)}%`;
+            fillBar.style.backgroundColor = percent > 100 ? '#c2412c' : (percent > 85 ? '#e67e22' : '#2c7a4d');
+        }
+    }
+    
+    function listenCurrentMonth() {
+        if (!firebaseInitialized || !db) return;
+        if (currentMonthUnsubscribe) {
+            currentMonthUnsubscribe();
+            currentMonthUnsubscribe = null;
+        }
+        const docId = getDocId(currentYear, currentMonth);
+        const docRef = db.collection('monthly_expenses').doc(docId);
+        setLoading(true);
+        currentMonthUnsubscribe = docRef.onSnapshot((docSnap) => {
+            setLoading(false);
+            if (docSnap.exists) {
+                const data = docSnap.data();
+                const daysMap = data.days || {};
+                updateAllDaysFromData(daysMap);
+            } else {
+                updateAllDaysFromData({});
+            }
+        }, (error) => {
+            setLoading(false);
+            console.error("监听月份出错:", error);
+        });
+    }
+    
+    function listenBudget() {
+        if (!firebaseInitialized || !db) return;
+        if (budgetUnsubscribe) {
+            budgetUnsubscribe();
+        }
+        const budgetRef = db.collection('settings').doc(BUDGET_DOC_ID);
+        budgetUnsubscribe = budgetRef.onSnapshot((docSnap) => {
+            if (docSnap.exists) {
+                const budgetVal = docSnap.data().amount;
+                if (typeof budgetVal === 'number' && !isNaN(budgetVal)) {
+                    totalBudget = budgetVal;
+                    document.getElementById('totalBudgetInput').value = totalBudget;
+                    recalcAllTotals();
+                }
+            } else {
+                budgetRef.set({ amount: 4000 }).catch(e=>console.warn);
+                totalBudget = 4000;
+                document.getElementById('totalBudgetInput').value = 4000;
+                recalcAllTotals();
+            }
+        }, err => console.warn("预算监听错误", err));
+    }
+    
+    function updateBudget(newAmount) {
+        if (isNaN(newAmount)) newAmount = 4000;
+        totalBudget = newAmount;
+        document.getElementById('totalBudgetInput').value = totalBudget;
+        recalcAllTotals();
+        if (firebaseInitialized && db) {
+            db.collection('settings').doc(BUDGET_DOC_ID).set({ amount: totalBudget }, { merge: true }).catch(e=>console.warn);
+        }
+    }
+    
+    function setMonth(year, month) {
+        if (month < 0) {
+            month = 11;
+            year -= 1;
+        } else if (month > 11) {
+            month = 0;
+            year += 1;
+        }
+        currentYear = year;
+        currentMonth = month;
+        const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+        document.getElementById('currentMonthDisplay').innerText = `${currentYear}年 ${monthNames[currentMonth]}`;
+        
+        buildTableStructure();
+        
+        if (firebaseInitialized && db) {
+            listenCurrentMonth();
+        } else {
+            updateAllDaysFromData({});
+        }
+    }
+    
+    function init() {
         const now = new Date();
-        await switchToMonth(now.getFullYear(), now.getMonth());
+        currentYear = now.getFullYear();
+        currentMonth = now.getMonth();
+        const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+        document.getElementById('currentMonthDisplay').innerText = `${currentYear}年 ${monthNames[currentMonth]}`;
+        
+        buildTableStructure();
+        
+        if (firebaseInitialized && db) {
+            listenBudget();
+            listenCurrentMonth();
+        } else {
+            console.log("离线模式: 数据仅保存在当前浏览器，刷新会丢失。请配置Firebase以启用多人协作和历史记录。");
+            document.getElementById('totalBudgetInput').addEventListener('change', (e) => {
+                let newVal = parseFloat(e.target.value);
+                if (isNaN(newVal)) newVal = 4000;
+                totalBudget = newVal;
+                recalcAllTotals();
+            });
+            updateAllDaysFromData({});
+        }
+        
+        const budgetInput = document.getElementById('totalBudgetInput');
+        budgetInput.addEventListener('change', (e) => {
+            let newVal = parseFloat(e.target.value);
+            if (isNaN(newVal)) newVal = 4000;
+            updateBudget(newVal);
+        });
+        
+        document.getElementById('prevMonthBtn').addEventListener('click', () => setMonth(currentYear, currentMonth - 1));
+        document.getElementById('nextMonthBtn').addEventListener('click', () => setMonth(currentYear, currentMonth + 1));
+        
+        recalcAllTotals();
     }
-    function updateBudget() {
-        let newBudget = parseFloat(totalBudgetInput.value);
-        if (isNaN(newBudget) || newBudget < 0) newBudget = 0;
-        TOTAL_BUDGET = newBudget;
-        totalBudgetInput.value = TOTAL_BUDGET.toFixed(2);
-        updateAllSummaries();
-    }
-    goToMonthBtn.addEventListener('click', async () => {
-        const year = parseInt(yearSelect.value, 10);
-        const month = parseInt(monthSelect.value, 10) - 1;
-        await switchToMonth(year, month);
-    });
-    resetBtn.addEventListener('click', resetAllExpenses);
-    updateBudgetBtn.addEventListener('click', updateBudget);
-    totalBudgetInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') updateBudget(); });
     
     init();
 </script>
