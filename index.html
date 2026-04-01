@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>家庭生活费协同账本 · 预算可调版</title>
+    <title>家庭生活费协同账本 · 布局优化版</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
@@ -11,7 +11,6 @@
             box-sizing: border-box;
             font-family: system-ui, 'Segoe UI', '微软雅黑', 'PingFang SC', Roboto, Arial, sans-serif;
         }
-
         body {
             background: #f0f2f5;
             margin: 0;
@@ -21,7 +20,6 @@
             align-items: center;
             min-height: 100vh;
         }
-
         .container {
             max-width: 1400px;
             width: 100%;
@@ -31,7 +29,6 @@
             overflow-x: auto;
             padding: 20px 24px 32px;
         }
-
         h1 {
             font-size: 1.8rem;
             font-weight: 600;
@@ -43,7 +40,6 @@
             flex-wrap: wrap;
             justify-content: space-between;
         }
-
         .title-badge {
             background: #eef2ff;
             padding: 6px 16px;
@@ -52,7 +48,6 @@
             font-weight: 500;
             color: #1e40af;
         }
-
         .sub {
             color: #475569;
             margin-bottom: 24px;
@@ -65,7 +60,6 @@
             align-items: center;
             gap: 12px;
         }
-
         .month-picker {
             display: flex;
             gap: 10px;
@@ -90,7 +84,6 @@
             cursor: pointer;
             font-size: 0.85rem;
         }
-
         .budget-panel {
             background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
             border-radius: 24px;
@@ -103,7 +96,6 @@
             gap: 20px;
             color: white;
         }
-
         .budget-item {
             background: rgba(255, 255, 255, 0.12);
             backdrop-filter: blur(2px);
@@ -112,7 +104,6 @@
             text-align: center;
             min-width: 150px;
         }
-
         .budget-label {
             font-size: 0.85rem;
             text-transform: uppercase;
@@ -120,14 +111,12 @@
             font-weight: 400;
             opacity: 0.8;
         }
-
         .budget-amount {
             font-size: 2.3rem;
             font-weight: 800;
             line-height: 1.2;
             margin-top: 6px;
         }
-
         .budget-edit {
             display: flex;
             align-items: center;
@@ -156,14 +145,12 @@
             font-weight: bold;
             color: white;
         }
-
         .remaining {
             background: #10b981;
         }
         .remaining.negative {
             background: #ef4444;
         }
-
         .reset-btn {
             background: #f97316;
             border: none;
@@ -179,48 +166,50 @@
             transform: scale(0.98);
         }
 
-        /* ========== 修复表格布局，填满宽度 ========== */
+        /* ========== 表格：彻底修复右侧空白 ========== */
         .expense-table-wrapper {
-            overflow-x: auto;
+            width: 100%;
             border-radius: 20px;
             border: 1px solid #e2e8f0;
-            background: white;
-            width: 100%;
+            background: #fff;
+            overflow-x: hidden; /* 关键：去掉横向滚动留白 */
         }
-
         .expense-table {
-            width: 100%;
+            width: 100% !important;
+            min-width: 100% !important;
             border-collapse: collapse;
             font-size: 0.9rem;
-            table-layout: fixed; /* 关键：固定表格布局，列宽由第一行决定 */
+            table-layout: fixed;
         }
-
-        /* 各列宽度比例 */
-        .expense-table th:nth-child(1),
-        .expense-table td:nth-child(1) { width: 5%; }   /* 展开图标 */
-        .expense-table th:nth-child(2),
-        .expense-table td:nth-child(2) { width: 12%; }  /* 日期 */
-        .expense-table th:nth-child(3),
-        .expense-table td:nth-child(3) { width: 10%; }  /* 星期 */
-        .expense-table th:nth-child(4),
-        .expense-table td:nth-child(4) { width: 18%; }  /* 当日总消费 */
-        .expense-table th:nth-child(5),
-        .expense-table td:nth-child(5) { width: 55%; }  /* 备注 */
-
-        /* 确保备注输入框填满列 */
-        .expense-table td:nth-child(5) input {
-            width: 100%;
+        .expense-table th,
+        .expense-table td {
             box-sizing: border-box;
         }
+        /* 列宽总和严格 100% */
+        .expense-table col:nth-child(1) { width: 7%;  }
+        .expense-table col:nth-child(2) { width: 13%; }
+        .expense-table col:nth-child(3) { width: 10%; }
+        .expense-table col:nth-child(4) { width: 25%; }
+        .expense-table col:nth-child(5) { width: 45%; }
 
+        /* 表头样式 */
+        .expense-table thead th {
+            padding: 12px 8px;
+            background: #f8fafc;
+            font-weight: 600;
+            color: #1e293b;
+            border-bottom: 2px solid #e2e8f0;
+            text-align: left;
+        }
         .week-header-row th {
             padding: 12px 12px;
             font-weight: 700;
             color: #0f3b5c;
             background: #f1f5f9;
             text-align: left;
+            border-top: 2px solid #cbd5e1;
+            border-bottom: 1px solid #e2e8f0;
         }
-
         .daily-main-row {
             cursor: pointer;
             background-color: white;
@@ -229,10 +218,9 @@
             background-color: #fefce8;
         }
         .daily-main-row td {
-            padding: 12px 10px;
+            padding: 12px 8px;
             border-bottom: 1px solid #ecf3fa;
             vertical-align: middle;
-            word-break: break-word;
         }
         .expand-icon {
             font-size: 1.2rem;
@@ -256,7 +244,13 @@
             background-color: #f1f5f9;
             box-sizing: border-box;
         }
-
+        .remark-input {
+            width: 100%;
+            padding: 6px 8px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-sizing: border-box;
+        }
         .details-row {
             background-color: #fefdf6;
             border-bottom: 1px solid #e2e8f0;
@@ -323,7 +317,6 @@
             background: #fffbeb;
             color: #b45309;
         }
-
         .footer-note {
             margin-top: 24px;
             text-align: center;
@@ -333,7 +326,6 @@
             padding: 12px;
             border-radius: 20px;
         }
-
         .sync-status {
             font-size: 0.8rem;
             background: #eef2ff;
@@ -342,22 +334,16 @@
             display: inline-block;
             color: #1e40af;
         }
-
         /* 移动端微调 */
         @media (max-width: 720px) {
             .container { padding: 16px; }
             .budget-item { min-width: 120px; padding: 8px 16px; }
             .budget-amount { font-size: 1.6rem; }
-            .expense-table th:nth-child(1),
-            .expense-table td:nth-child(1) { width: 8%; }
-            .expense-table th:nth-child(2),
-            .expense-table td:nth-child(2) { width: 18%; }
-            .expense-table th:nth-child(3),
-            .expense-table td:nth-child(3) { width: 15%; }
-            .expense-table th:nth-child(4),
-            .expense-table td:nth-child(4) { width: 22%; }
-            .expense-table th:nth-child(5),
-            .expense-table td:nth-child(5) { width: 37%; }
+            .expense-table col:nth-child(1) { width: 12%; }
+            .expense-table col:nth-child(2) { width: 20%; }
+            .expense-table col:nth-child(3) { width: 18%; }
+            .expense-table col:nth-child(4) { width: 25%; }
+            .expense-table col:nth-child(5) { width: 25%; }
             .item-name-input { width: 100px; }
             .item-amount-input { width: 85px; }
         }
@@ -366,7 +352,7 @@
 <body>
 <div class="container">
     <h1>
-        📋 家庭生活费协同账本 · 预算可调
+        📋 家庭生活费协同账本 · 布局优化
         <span class="title-badge">云端同步 · 多人协作</span>
     </h1>
     <div class="sub">
@@ -378,7 +364,6 @@
             <span class="sync-status" id="syncStatus">🔄 连接中...</span>
         </div>
     </div>
-
     <div class="budget-panel">
         <div class="budget-item">
             <div class="budget-label">💰 总预算</div>
@@ -399,9 +384,15 @@
         </div>
         <button class="reset-btn" id="resetAllBtn">⟳ 清零所有消费</button>
     </div>
-
     <div class="expense-table-wrapper">
         <table class="expense-table">
+            <colgroup>
+                <col>
+                <col>
+                <col>
+                <col>
+                <col>
+            </colgroup>
             <thead>
                 <tr>
                     <th>📌</th>
@@ -418,7 +409,6 @@
         ✨ 提示：点击日期行展开，可添加/删除具体项目（早餐、午餐等），金额自动汇总。所有数据云端存储，多人实时同步。总预算可随时修改。
     </div>
 </div>
-
 <script>
     // ==================== 请替换为您的 Firebase 配置 ====================
     const firebaseConfig = {
@@ -430,7 +420,6 @@
         appId: "1:1073000744379:web:f0151dec6b3564a470f09e"
     };
     // =================================================================
-
     // 初始化 Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
@@ -442,7 +431,6 @@
     let expandedRowState = {};
     let currentDocRef = null;
     let unsubListener = null;
-
     const tableBodyContainer = document.getElementById('tableBodyContainer');
     const totalSpentDisplay = document.getElementById('totalSpentDisplay');
     const remainingAmountSpan = document.getElementById('remainingAmount');
@@ -454,7 +442,6 @@
     const goToMonthBtn = document.getElementById('goToMonthBtn');
     const totalBudgetInput = document.getElementById('totalBudgetInput');
     const updateBudgetBtn = document.getElementById('updateBudgetBtn');
-
     function getDaysInMonth(year, month) { return new Date(year, month + 1, 0).getDate(); }
     function getChineseWeekday(dateObj) { let dayNum = dateObj.getDay(); return dayNum === 0 ? 7 : dayNum; }
     
@@ -473,7 +460,6 @@
         }
         return monthData;
     }
-
     function applyCloudData(cloudDoc) {
         if (!cloudDoc || !cloudDoc.days) return;
         const daysMap = cloudDoc.days;
@@ -490,13 +476,11 @@
             }
         });
     }
-
     function buildCloudData() {
         const days = {};
         monthlyData.forEach(day => { days[day.dateStr] = { items: day.items, remark: day.remark }; });
         return { days };
     }
-
     async function syncToCloud() {
         if (!currentDocRef) return;
         try {
@@ -505,7 +489,6 @@
             setTimeout(() => { if (syncStatusSpan.innerText === '✅ 已同步') syncStatusSpan.innerText = '☁️ 已连接'; }, 1500);
         } catch (err) { console.error('同步失败:', err); syncStatusSpan.innerText = '⚠️ 同步失败'; }
     }
-
     async function updateDayAndSync(dayIdx) {
         const day = monthlyData[dayIdx];
         day.totalAmount = day.items.reduce((sum, it) => sum + (it.amount || 0), 0);
@@ -513,7 +496,6 @@
         updateAllSummaries();
         renderFullTable();
     }
-
     async function resetAllExpenses() {
         if (!confirm('确认清零当前月份所有消费记录？此操作会同步到所有成员，无法撤销。')) return;
         monthlyData.forEach(day => { day.items = []; day.remark = ''; day.totalAmount = 0; });
@@ -521,7 +503,6 @@
         await syncToCloud();
         renderFullTable();
     }
-
     function updateAllSummaries() {
         let totalSpent = monthlyData.reduce((sum, day) => sum + day.totalAmount, 0);
         const remaining = TOTAL_BUDGET - totalSpent;
@@ -534,7 +515,6 @@
             remainingCard.classList.remove('negative');
             remainingCard.style.background = "#10b981";
         }
-
         if (!weeklyGroups.length) return;
         weeklyGroups.forEach((group, idx) => {
             let groupSum = group.daysIndices.reduce((sum, di) => sum + monthlyData[di].totalAmount, 0);
@@ -542,7 +522,6 @@
             if (span) span.innerText = `¥${groupSum.toFixed(2)}`;
         });
     }
-
     function groupByWeek(monthData) {
         const groups = [];
         let currentGroup = null;
@@ -560,12 +539,10 @@
         if (currentGroup) groups.push(currentGroup);
         return groups;
     }
-
     function renderFullTable() {
         if (!monthlyData.length) return;
-        weeklyGroups = groupByWeek(monthlyData);
+        weeklyGroups = groupByWeek(monthData);
         tableBodyContainer.innerHTML = '';
-
         weeklyGroups.forEach((group, groupIdx) => {
             const tbody = document.createElement('tbody');
             const startDay = monthlyData[group.startIdx], endDay = monthlyData[group.endIdx];
@@ -576,7 +553,6 @@
             th.innerHTML = `📅 第 ${groupIdx+1} 周 · ${startDay.dateStr} 至 ${endDay.dateStr} (周一~周日)`;
             titleRow.appendChild(th);
             tbody.appendChild(titleRow);
-
             group.daysIndices.forEach(dayIdx => {
                 const day = monthlyData[dayIdx];
                 const isExpanded = expandedRowState[day.dateStr] || false;
@@ -605,7 +581,7 @@
                 remarkInput.type = 'text';
                 remarkInput.placeholder = '备注';
                 remarkInput.value = day.remark || '';
-                remarkInput.style.cssText = 'width:100%;padding:6px;border-radius:12px;border:1px solid #e2e8f0;box-sizing:border-box';
+                remarkInput.className = 'remark-input';
                 remarkInput.addEventListener('change', async (e) => { day.remark = e.target.value; await syncToCloud(); });
                 remarkCell.appendChild(remarkInput);
                 mainRow.appendChild(expandCell);
@@ -619,7 +595,6 @@
                     renderFullTable();
                 });
                 tbody.appendChild(mainRow);
-
                 if (isExpanded) {
                     const detailRow = document.createElement('tr');
                     detailRow.className = 'details-row';
@@ -677,7 +652,6 @@
                     tbody.appendChild(detailRow);
                 }
             });
-
             const summaryRow = document.createElement('tr');
             summaryRow.className = 'weekly-summary-row';
             const sumLabelCell = document.createElement('td');
@@ -700,7 +674,6 @@
         });
         updateAllSummaries();
     }
-
     function watchCloudChanges() {
         if (unsubListener) unsubListener();
         if (!currentDocRef) return;
@@ -716,7 +689,6 @@
             syncStatusSpan.innerText = '⚠️ 连接异常';
         });
     }
-
     async function switchToMonth(year, month) {
         if (unsubListener) unsubListener();
         currentYear = year;
@@ -744,7 +716,6 @@
             renderFullTable();
         }
     }
-
     function initMonthPicker() {
         const now = new Date();
         const currentYearVal = now.getFullYear();
@@ -763,7 +734,6 @@
         }
         monthSelect.value = now.getMonth() + 1;
     }
-
     async function init() {
         if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "YOUR_API_KEY") {
             alert('请先在代码中替换您的 Firebase 配置！');
@@ -774,7 +744,6 @@
         const now = new Date();
         await switchToMonth(now.getFullYear(), now.getMonth());
     }
-
     function updateBudget() {
         let newBudget = parseFloat(totalBudgetInput.value);
         if (isNaN(newBudget) || newBudget < 0) newBudget = 0;
@@ -782,7 +751,6 @@
         totalBudgetInput.value = TOTAL_BUDGET.toFixed(2);
         updateAllSummaries();
     }
-
     goToMonthBtn.addEventListener('click', async () => {
         const year = parseInt(yearSelect.value, 10);
         const month = parseInt(monthSelect.value, 10) - 1;
