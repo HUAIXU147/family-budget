@@ -32,7 +32,6 @@
             padding: 1.5rem;
         }
 
-        /* 头部 */
         .header {
             display: flex;
             flex-wrap: wrap;
@@ -114,7 +113,6 @@
             color: #0f172a;
         }
 
-        /* 统计卡片 */
         .stats {
             display: flex;
             gap: 24px;
@@ -170,7 +168,6 @@
             transition: width 0.2s;
         }
 
-        /* 表格区域 - 无横向滚动，自适应宽度 */
         .table-wrapper {
             overflow-x: visible;
             border-radius: 24px;
@@ -220,7 +217,6 @@
             background: white;
         }
 
-        /* 每日卡片 */
         .day-card {
             display: flex;
             flex-direction: column;
@@ -311,7 +307,6 @@
         .add-item-btn:hover {
             background: #d4e2f5;
         }
-        /* 日总结样式 */
         .day-total {
             background: #f0fdf4;
             border-radius: 20px;
@@ -410,14 +405,14 @@
         <div class="loading-overlay" id="loadingOverlay" style="display: none;">📡 加载数据中...</div>
         <table class="expense-table" id="expenseTable">
             <thead>
-                <tr><th>周一</th><th>周二</th><th>周三</th><th>周四</th><th>周五</th><th>周六</th><th>周日</th><th>📊 周合计</th>   </>
+                <tr><th>周一</th><th>周二</th><th>周三</th><th>周四</th><th>周五</th><th>周六</th><th>周日</th><th>📊 周合计</th> </tr>
             </thead>
             <tbody id="tableBody"></tbody>
-         </table>
+        </table>
     </div>
     <div class="footer-note">
         ✨ 数据实时云端同步（Firebase），每月消费独立保存，切换月份不会丢失历史记录。<br>
-        📝 每天可自由添加消费项（早餐、午餐、交通等），点击“+ 添加”增加条目，每日底部显示本日合计。
+        📝 每天可自由添加消费项，点击“+ 添加”增加条目，每日底部显示本日合计。输入后自动保存，不会丢失。
     </div>
 </div>
 
@@ -452,7 +447,8 @@
     let totalBudget = 4000;
     let currentMonthUnsubscribe = null;
     let budgetUnsubscribe = null;
-    let isRendering = false;
+    // 存储当前月份各天的条目数据，用于对比更新（避免全量重绘）
+    let localDaysData = {};
 
     function getDocId(year, month) {
         const m = (month + 1).toString().padStart(2, '0');
@@ -465,7 +461,315 @@
         if (overlay) overlay.style.display = show ? 'flex' : 'none';
     }
 
-    // 构建表格结构（骨架，包含日合计占位）
+    // 生成唯一ID
+    function generateId() {
+        return `item_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
+    }
+
+    // 创建单个条目的DOM元素，绑定事件
+    function createExpenseItemElement(day, itemId, name, amount, isNew = false) {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'expense-item';
+        itemDiv.setAttribute('data-item-id', itemId);
+        
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.className = 'expense-name';
+        nameInput.placeholder = '项目';
+        nameInput.value = name || '';
+        
+        const amountInput = document.createElement('input');
+        amountInput.type = 'number';
+        amountInput.step = '0.01';
+        amountInput.className = 'expense-amount';
+        amountInput.placeholder = '金额';
+        amountInput.value = (amount !== undefined && amount !== null && !isNaN(amount) && amount !== 0) ? amount : '';
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-item-btn';
+        deleteBtn.innerHTML = '✕';
+        
+        // 保存函数
+        const saveItem = () => {
+            const newName = nameInput.value.trim();
+            const newAmount = parseFloat(amountInput.value);
+            const finalAmount = isNaN(newAmount) ? 0 : newAmount;
+            const finalName = newName === '' ? '未命名' : newName;
+            
+            // 更新本地缓存
+            if (!localDaysData[day]) localDaysData[day] = [];
+            const existingIndex = localDaysData[day].findIndex(item => item.id === itemId);
+            if (existingIndex !== -1) {
+                localDaysData[day][existingIndex] = { id: itemId, name: finalName, amount: finalAmount };
+            } else {
+                localDaysData[day].push({ id: itemId, name: finalName, amount: finalAmount });
+            }
+            // 保存到云端
+            saveDayToCloud(day);
+            // 更新日合计显示
+            updateDayTotal(day);
+            // 重新计算总合计和周合计
+            recalcAllTotals();
+        };
+        
+        nameInput.addEventListener('change', saveItem);
+        amountInput.addEventListener('change', saveItem);
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            // 从本地缓存删除
+            if (localDaysData[day]) {
+                localDaysData[day] = localDaysData[day].filter(item => item.id !== itemId);
+                saveDayToCloud(day);
+            }
+            itemDiv.remove();
+            updateDayTotal(day);
+            recalcAllTotals();
+        };
+        
+        itemDiv.appendChild(nameInput);
+        itemDiv.appendChild(amountInput);
+        itemDiv.appendChild(deleteBtn);
+        return itemDiv;
+    }
+    
+    // 保存某一天的数据到Firestore（只保存该天）
+    function saveDayToCloud(day) {
+        if (!firebaseInitialized || !db) {
+            recalcAllTotals();
+            return;
+        }
+        const items = (localDaysData[day] || []).map(item => ({
+            name: item.name,
+            amount: item.amount
+        }));
+        const docId = getDocId(currentYear, currentMonth);
+        const docRef = db.collection('monthly_expenses').doc(docId);
+        const updatePath = `days.${day}`;
+        const updateData = {};
+        updateData[updatePath] = items;
+        docRef.set(updateData, { merge: true })
+            .catch(err => console.error("保存失败:", err));
+    }
+    
+    // 更新某一天的日合计显示
+    function updateDayTotal(day) {
+        const dayTotalEl = document.getElementById(`day-total-${day}`);
+        if (dayTotalEl) {
+            let total = 0;
+            const items = localDaysData[day] || [];
+            items.forEach(item => { total += item.amount; });
+            dayTotalEl.innerText = `合计: ${total.toFixed(2)}`;
+        }
+    }
+    
+    // 重新计算所有周合计和总消费（基于localDaysData）
+    function recalcAllTotals() {
+        const rows = document.querySelectorAll('#tableBody tr');
+        let grandTotal = 0;
+        
+        for (let r = 0; r < rows.length; r++) {
+            const row = rows[r];
+            const tds = row.querySelectorAll('td:not(:last-child)');
+            let weekSum = 0;
+            tds.forEach(td => {
+                const dayCard = td.querySelector('.day-card');
+                if (dayCard) {
+                    const dayNum = parseInt(dayCard.getAttribute('data-day'));
+                    let dayTotal = 0;
+                    const items = localDaysData[dayNum] || [];
+                    items.forEach(item => { dayTotal += item.amount; });
+                    weekSum += dayTotal;
+                    grandTotal += dayTotal;
+                }
+            });
+            const weekTotalTd = row.querySelector('td:last-child');
+            if (weekTotalTd) {
+                weekTotalTd.innerHTML = `<span>${weekSum.toFixed(2)}</span>`;
+            }
+        }
+        
+        document.getElementById('totalSpent').innerText = grandTotal.toFixed(2);
+        const remaining = totalBudget - grandTotal;
+        const remainingEl = document.getElementById('remainingAmount');
+        remainingEl.innerText = remaining.toFixed(2);
+        if (remaining < 0) {
+            remainingEl.classList.add('negative');
+        } else {
+            remainingEl.classList.remove('negative');
+        }
+        const percent = totalBudget > 0 ? (grandTotal / totalBudget) * 100 : 0;
+        const fillBar = document.getElementById('progressFill');
+        if (fillBar) {
+            fillBar.style.width = `${Math.min(100, percent)}%`;
+            fillBar.style.backgroundColor = percent > 100 ? '#c2412c' : (percent > 85 ? '#e67e22' : '#2c7a4d');
+        }
+    }
+    
+    // 添加新条目（在指定天）
+    function addExpenseItem(day) {
+        const container = document.getElementById(`day-${day}-list`);
+        if (!container) return;
+        const newId = generateId();
+        const newItem = createExpenseItemElement(day, newId, '', 0, true);
+        container.appendChild(newItem);
+        // 初始化本地缓存
+        if (!localDaysData[day]) localDaysData[day] = [];
+        localDaysData[day].push({ id: newId, name: '未命名', amount: 0 });
+        // 保存（触发云端同步）
+        saveDayToCloud(day);
+        updateDayTotal(day);
+        recalcAllTotals();
+    }
+    
+    // 根据云端数据更新某一天的列表（智能同步，避免覆盖用户正在输入的内容）
+    function syncDayFromCloud(day, cloudItems) {
+        // 如果该天没有本地缓存，初始化
+        if (!localDaysData[day]) {
+            localDaysData[day] = [];
+        }
+        // 将云端数据转换为带ID的格式（如果云端没有ID，我们生成ID）
+        const cloudMap = new Map();
+        cloudItems.forEach((item, idx) => {
+            // 为每个云端条目生成稳定的ID（基于内容哈希，避免重复添加）
+            let existingId = null;
+            // 先尝试匹配本地已存在的相同内容条目
+            const existing = localDaysData[day].find(local => local.name === item.name && Math.abs(local.amount - item.amount) < 0.01);
+            if (existing) {
+                existingId = existing.id;
+            } else {
+                existingId = generateId();
+            }
+            cloudMap.set(existingId, { id: existingId, name: item.name, amount: item.amount });
+        });
+        
+        // 找出需要删除的本地条目（不在云端中）
+        const toDelete = localDaysData[day].filter(local => !cloudMap.has(local.id));
+        // 找出需要新增的云端条目
+        const toAdd = Array.from(cloudMap.values()).filter(cloud => !localDaysData[day].some(local => local.id === cloud.id));
+        // 找出需要更新的（内容变化）
+        const toUpdate = Array.from(cloudMap.values()).filter(cloud => {
+            const local = localDaysData[day].find(l => l.id === cloud.id);
+            return local && (local.name !== cloud.name || Math.abs(local.amount - cloud.amount) > 0.01);
+        });
+        
+        // 执行删除
+        toDelete.forEach(del => {
+            const itemEl = document.querySelector(`.day-card[data-day='${day}'] .expense-item[data-item-id='${del.id}']`);
+            if (itemEl) itemEl.remove();
+        });
+        // 执行新增
+        const container = document.getElementById(`day-${day}-list`);
+        toAdd.forEach(add => {
+            const newItem = createExpenseItemElement(day, add.id, add.name, add.amount);
+            container.appendChild(newItem);
+        });
+        // 执行更新
+        toUpdate.forEach(up => {
+            const itemEl = container.querySelector(`.expense-item[data-item-id='${up.id}']`);
+            if (itemEl) {
+                const nameInput = itemEl.querySelector('.expense-name');
+                const amountInput = itemEl.querySelector('.expense-amount');
+                if (nameInput) nameInput.value = up.name;
+                if (amountInput) amountInput.value = up.amount;
+            }
+        });
+        
+        // 更新本地缓存
+        localDaysData[day] = Array.from(cloudMap.values());
+        updateDayTotal(day);
+        recalcAllTotals();
+    }
+    
+    // 完整更新所有天（当切换月份或首次加载时）
+    function fullUpdateFromCloud(daysMap) {
+        for (let day in daysMap) {
+            if (daysMap.hasOwnProperty(day)) {
+                syncDayFromCloud(parseInt(day), daysMap[day]);
+            }
+        }
+        // 对于没有数据的天，清空列表
+        const allDayCards = document.querySelectorAll('.day-card');
+        allDayCards.forEach(card => {
+            const dayNum = parseInt(card.getAttribute('data-day'));
+            if (!daysMap[dayNum]) {
+                const container = document.getElementById(`day-${dayNum}-list`);
+                if (container) container.innerHTML = '';
+                if (localDaysData[dayNum]) delete localDaysData[dayNum];
+                updateDayTotal(dayNum);
+            }
+        });
+        recalcAllTotals();
+    }
+    
+    // 监听当前月份
+    function listenCurrentMonth() {
+        if (!firebaseInitialized || !db) return;
+        if (currentMonthUnsubscribe) {
+            currentMonthUnsubscribe();
+            currentMonthUnsubscribe = null;
+        }
+        const docId = getDocId(currentYear, currentMonth);
+        const docRef = db.collection('monthly_expenses').doc(docId);
+        setLoading(true);
+        currentMonthUnsubscribe = docRef.onSnapshot((docSnap) => {
+            setLoading(false);
+            if (docSnap.exists) {
+                const data = docSnap.data();
+                const daysMap = data.days || {};
+                fullUpdateFromCloud(daysMap);
+            } else {
+                // 清空所有数据
+                const allDayCards = document.querySelectorAll('.day-card');
+                allDayCards.forEach(card => {
+                    const dayNum = parseInt(card.getAttribute('data-day'));
+                    const container = document.getElementById(`day-${dayNum}-list`);
+                    if (container) container.innerHTML = '';
+                    if (localDaysData[dayNum]) delete localDaysData[dayNum];
+                    updateDayTotal(dayNum);
+                });
+                recalcAllTotals();
+            }
+        }, (error) => {
+            setLoading(false);
+            console.error("监听月份出错:", error);
+        });
+    }
+    
+    // 监听预算
+    function listenBudget() {
+        if (!firebaseInitialized || !db) return;
+        if (budgetUnsubscribe) {
+            budgetUnsubscribe();
+        }
+        const budgetRef = db.collection('settings').doc(BUDGET_DOC_ID);
+        budgetUnsubscribe = budgetRef.onSnapshot((docSnap) => {
+            if (docSnap.exists) {
+                const budgetVal = docSnap.data().amount;
+                if (typeof budgetVal === 'number' && !isNaN(budgetVal)) {
+                    totalBudget = budgetVal;
+                    document.getElementById('totalBudgetInput').value = totalBudget;
+                    recalcAllTotals();
+                }
+            } else {
+                budgetRef.set({ amount: 4000 }).catch(e=>console.warn);
+                totalBudget = 4000;
+                document.getElementById('totalBudgetInput').value = 4000;
+                recalcAllTotals();
+            }
+        }, err => console.warn("预算监听错误", err));
+    }
+    
+    function updateBudget(newAmount) {
+        if (isNaN(newAmount)) newAmount = 4000;
+        totalBudget = newAmount;
+        document.getElementById('totalBudgetInput').value = totalBudget;
+        recalcAllTotals();
+        if (firebaseInitialized && db) {
+            db.collection('settings').doc(BUDGET_DOC_ID).set({ amount: totalBudget }, { merge: true }).catch(e=>console.warn);
+        }
+    }
+    
+    // 构建表格骨架（不含数据）
     function buildTableStructure() {
         const year = currentYear;
         const month = currentMonth;
@@ -532,7 +836,6 @@
                     };
                     dayCard.appendChild(addBtn);
                     
-                    // 日总结显示区域
                     const dayTotalDiv = document.createElement('div');
                     dayTotalDiv.className = 'day-total';
                     dayTotalDiv.id = `day-total-${dayNum}`;
@@ -550,241 +853,6 @@
             tbody.appendChild(tr);
         }
     }
-
-    function createExpenseItemElement(day, itemId, name = '', amount = '') {
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'expense-item';
-        itemDiv.setAttribute('data-item-id', itemId);
-        
-        const nameInput = document.createElement('input');
-        nameInput.type = 'text';
-        nameInput.className = 'expense-name';
-        nameInput.placeholder = '项目';
-        nameInput.value = name;
-        
-        const amountInput = document.createElement('input');
-        amountInput.type = 'number';
-        amountInput.step = '0.01';
-        amountInput.className = 'expense-amount';
-        amountInput.placeholder = '金额';
-        amountInput.value = (amount !== '' && !isNaN(amount)) ? amount : '';
-        
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-item-btn';
-        deleteBtn.innerHTML = '✕';
-        deleteBtn.onclick = (e) => {
-            e.stopPropagation();
-            deleteExpenseItem(day, itemId);
-        };
-        
-        const updateHandler = () => {
-            updateDayExpensesToFirestore(day);
-        };
-        nameInput.addEventListener('change', updateHandler);
-        amountInput.addEventListener('change', updateHandler);
-        
-        itemDiv.appendChild(nameInput);
-        itemDiv.appendChild(amountInput);
-        itemDiv.appendChild(deleteBtn);
-        return itemDiv;
-    }
-    
-    function addExpenseItem(day, prefillName = '', prefillAmount = '') {
-        const container = document.getElementById(`day-${day}-list`);
-        if (!container) return;
-        const tempId = `item_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
-        const newItem = createExpenseItemElement(day, tempId, prefillName, prefillAmount);
-        container.appendChild(newItem);
-        updateDayExpensesToFirestore(day);
-    }
-    
-    function deleteExpenseItem(day, itemId) {
-        const container = document.getElementById(`day-${day}-list`);
-        if (!container) return;
-        const targetItem = container.querySelector(`.expense-item[data-item-id="${itemId}"]`);
-        if (targetItem) {
-            targetItem.remove();
-            updateDayExpensesToFirestore(day);
-        }
-    }
-    
-    function collectDayItems(day) {
-        const container = document.getElementById(`day-${day}-list`);
-        if (!container) return [];
-        const items = [];
-        const itemDivs = container.querySelectorAll('.expense-item');
-        itemDivs.forEach(div => {
-            const nameInput = div.querySelector('.expense-name');
-            const amountInput = div.querySelector('.expense-amount');
-            let name = nameInput ? nameInput.value.trim() : '';
-            let amount = amountInput ? parseFloat(amountInput.value) : 0;
-            if (isNaN(amount)) amount = 0;
-            if (name === '' && amount === 0) return;
-            if (name === '') name = '未命名';
-            items.push({ name, amount });
-        });
-        return items;
-    }
-    
-    function updateDayExpensesToFirestore(day) {
-        if (!firebaseInitialized || !db) {
-            recalcAllTotals();
-            return;
-        }
-        const items = collectDayItems(day);
-        const docId = getDocId(currentYear, currentMonth);
-        const docRef = db.collection('monthly_expenses').doc(docId);
-        const updatePath = `days.${day}`;
-        const updateData = {};
-        updateData[updatePath] = items;
-        docRef.set(updateData, { merge: true })
-            .then(() => recalcAllTotals())
-            .catch(err => console.error("更新失败:", err));
-    }
-    
-    function renderDayFromData(day, itemsArray) {
-        const container = document.getElementById(`day-${day}-list`);
-        if (!container) return;
-        container.innerHTML = '';
-        if (!itemsArray || !Array.isArray(itemsArray)) return;
-        itemsArray.forEach((item, idx) => {
-            const itemId = `item_${day}_${idx}_${Date.now()}_${Math.random()}`;
-            const itemEl = createExpenseItemElement(day, itemId, item.name || '', item.amount !== undefined ? item.amount : '');
-            container.appendChild(itemEl);
-        });
-    }
-    
-    function updateAllDaysFromData(daysMap) {
-        if (isRendering) return;
-        isRendering = true;
-        try {
-            for (let day in daysMap) {
-                if (daysMap.hasOwnProperty(day)) {
-                    renderDayFromData(parseInt(day), daysMap[day]);
-                }
-            }
-            const allDayContainers = document.querySelectorAll('.day-card');
-            allDayContainers.forEach(card => {
-                const dayAttr = card.getAttribute('data-day');
-                if (dayAttr && !daysMap[dayAttr]) {
-                    const listDiv = card.querySelector('.expense-list');
-                    if (listDiv) listDiv.innerHTML = '';
-                }
-            });
-            recalcAllTotals();
-        } finally {
-            isRendering = false;
-        }
-    }
-    
-    // 核心计算：总消费、周合计、日合计
-    function recalcAllTotals() {
-        const rows = document.querySelectorAll('#tableBody tr');
-        let grandTotal = 0;
-        
-        for (let r = 0; r < rows.length; r++) {
-            const row = rows[r];
-            const tds = row.querySelectorAll('td:not(:last-child)');
-            let weekSum = 0;
-            tds.forEach(td => {
-                const dayCard = td.querySelector('.day-card');
-                if (dayCard) {
-                    const dayNum = dayCard.getAttribute('data-day');
-                    const amounts = dayCard.querySelectorAll('.expense-amount');
-                    let dayTotal = 0;
-                    amounts.forEach(amountInput => {
-                        let val = parseFloat(amountInput.value);
-                        if (!isNaN(val)) dayTotal += val;
-                    });
-                    weekSum += dayTotal;
-                    grandTotal += dayTotal;
-                    
-                    // 更新日合计显示
-                    const dayTotalEl = document.getElementById(`day-total-${dayNum}`);
-                    if (dayTotalEl) {
-                        dayTotalEl.innerText = `合计: ${dayTotal.toFixed(2)}`;
-                    }
-                }
-            });
-            const weekTotalTd = row.querySelector('td:last-child');
-            if (weekTotalTd) {
-                weekTotalTd.innerHTML = `<span>${weekSum.toFixed(2)}</span>`;
-            }
-        }
-        
-        document.getElementById('totalSpent').innerText = grandTotal.toFixed(2);
-        const remaining = totalBudget - grandTotal;
-        const remainingEl = document.getElementById('remainingAmount');
-        remainingEl.innerText = remaining.toFixed(2);
-        if (remaining < 0) {
-            remainingEl.classList.add('negative');
-        } else {
-            remainingEl.classList.remove('negative');
-        }
-        const percent = totalBudget > 0 ? (grandTotal / totalBudget) * 100 : 0;
-        const fillBar = document.getElementById('progressFill');
-        if (fillBar) {
-            fillBar.style.width = `${Math.min(100, percent)}%`;
-            fillBar.style.backgroundColor = percent > 100 ? '#c2412c' : (percent > 85 ? '#e67e22' : '#2c7a4d');
-        }
-    }
-    
-    function listenCurrentMonth() {
-        if (!firebaseInitialized || !db) return;
-        if (currentMonthUnsubscribe) {
-            currentMonthUnsubscribe();
-            currentMonthUnsubscribe = null;
-        }
-        const docId = getDocId(currentYear, currentMonth);
-        const docRef = db.collection('monthly_expenses').doc(docId);
-        setLoading(true);
-        currentMonthUnsubscribe = docRef.onSnapshot((docSnap) => {
-            setLoading(false);
-            if (docSnap.exists) {
-                const data = docSnap.data();
-                const daysMap = data.days || {};
-                updateAllDaysFromData(daysMap);
-            } else {
-                updateAllDaysFromData({});
-            }
-        }, (error) => {
-            setLoading(false);
-            console.error("监听月份出错:", error);
-        });
-    }
-    
-    function listenBudget() {
-        if (!firebaseInitialized || !db) return;
-        if (budgetUnsubscribe) {
-            budgetUnsubscribe();
-        }
-        const budgetRef = db.collection('settings').doc(BUDGET_DOC_ID);
-        budgetUnsubscribe = budgetRef.onSnapshot((docSnap) => {
-            if (docSnap.exists) {
-                const budgetVal = docSnap.data().amount;
-                if (typeof budgetVal === 'number' && !isNaN(budgetVal)) {
-                    totalBudget = budgetVal;
-                    document.getElementById('totalBudgetInput').value = totalBudget;
-                    recalcAllTotals();
-                }
-            } else {
-                budgetRef.set({ amount: 4000 }).catch(e=>console.warn);
-                totalBudget = 4000;
-                document.getElementById('totalBudgetInput').value = 4000;
-                recalcAllTotals();
-            }
-        }, err => console.warn("预算监听错误", err));
-    }
-    
-    function updateBudget(newAmount) {
-        if (isNaN(newAmount)) newAmount = 4000;
-        totalBudget = newAmount;
-        document.getElementById('totalBudgetInput').value = totalBudget;
-        recalcAllTotals();
-        if (firebaseInitialized && db) {
-            db.collection('settings').doc(BUDGET_DOC_ID).set({ amount: totalBudget }, { merge: true }).catch(e=>console.warn);
-        }
-    }
     
     function setMonth(year, month) {
         if (month < 0) {
@@ -799,12 +867,14 @@
         const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
         document.getElementById('currentMonthDisplay').innerText = `${currentYear}年 ${monthNames[currentMonth]}`;
         
+        // 重置本地数据
+        localDaysData = {};
         buildTableStructure();
         
         if (firebaseInitialized && db) {
             listenCurrentMonth();
         } else {
-            updateAllDaysFromData({});
+            fullUpdateFromCloud({});
         }
     }
     
@@ -828,7 +898,7 @@
                 totalBudget = newVal;
                 recalcAllTotals();
             });
-            updateAllDaysFromData({});
+            fullUpdateFromCloud({});
         }
         
         const budgetInput = document.getElementById('totalBudgetInput');
